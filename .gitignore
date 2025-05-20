@@ -8,3 +8,15 @@ wheels/
 
 # Virtual environments
 .venv
+
+
+# Data
+data/
+
+# Kaggle
+kaggle.json
+
+
+.env
+models/
+logs/

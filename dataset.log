@@ -1,0 +1,39 @@
+2025-05-20 23:13:46,689 - INFO - Downloading dataset from Kaggle...
+2025-05-20 23:15:33,031 - ERROR - Missing directories: {'train', 'test'}
+2025-05-20 23:18:16,847 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:18:16,847 - ERROR - Missing directories: {'train', 'test'}
+2025-05-20 23:18:16,847 - ERROR - Dataset structure verification failed
+2025-05-20 23:19:36,330 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:19:36,331 - ERROR - Missing classes in train: {'street', 'forest', 'sea', 'buildings', 'mountain', 'glacier'}
+2025-05-20 23:19:36,331 - ERROR - Dataset structure verification failed
+2025-05-20 23:21:23,527 - INFO - Downloading dataset from Kaggle...
+2025-05-20 23:23:28,995 - ERROR - Missing directories: {'test', 'train'}
+2025-05-20 23:23:28,996 - ERROR - Dataset structure verification failed
+2025-05-20 23:23:37,314 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:23:37,314 - ERROR - Missing classes in train: {'glacier', 'sea', 'street', 'mountain', 'forest', 'buildings'}
+2025-05-20 23:23:37,315 - ERROR - Dataset structure verification failed
+2025-05-20 23:24:51,125 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:24:51,125 - ERROR - Missing directories: {'seg_test/seg_test', 'seg_train/seg_train', 'seg_pred/seg_pred'}
+2025-05-20 23:24:51,126 - ERROR - Dataset structure verification failed
+2025-05-20 23:25:04,369 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:25:04,369 - ERROR - Missing classes in train: {'street', 'forest', 'mountain', 'glacier', 'buildings', 'sea'}
+2025-05-20 23:25:04,370 - ERROR - Dataset structure verification failed
+2025-05-20 23:29:15,949 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:29:15,950 - ERROR - Validation split failed: name 'np' is not defined
+2025-05-20 23:29:15,950 - ERROR - Validation split creation failed
+2025-05-20 23:29:39,376 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:29:39,378 - INFO - Dataset preparation completed successfully!
+2025-05-20 23:30:23,303 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:30:23,309 - INFO - Dataset preparation completed successfully!
+2025-05-20 23:30:55,546 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:30:55,548 - INFO - Dataset preparation completed successfully!
+2025-05-20 23:36:18,041 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:36:18,043 - INFO - Dataset preparation completed successfully!
+2025-05-20 23:36:57,420 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:36:57,421 - INFO - Dataset preparation completed successfully!
+2025-05-20 23:38:11,871 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:38:11,872 - INFO - Dataset preparation completed successfully!
+2025-05-20 23:41:18,885 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:41:18,887 - INFO - Dataset preparation completed successfully!
+2025-05-20 23:42:04,251 - INFO - Dataset already exists, skipping download.
+2025-05-20 23:42:04,253 - INFO - Dataset preparation completed successfully!

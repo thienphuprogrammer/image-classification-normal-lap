@@ -1,156 +1,145 @@
-import os
 import tensorflow as tf
-from src.data_preprocessing.preprocessor import DataPreprocessor
-from src.data_ingestion.data_loader import DataLoader
-from src.data_engineering.feature_engineering import FeatureEngineer
-from src.models.cnn_model import CNNModel
-from src.models.advanced_models import AdvancedCNNModel
-from src.evalution.model_evaluator import ModelEvaluator
-from src.data_engineering.data_balancer import DataBalancer
-import matplotlib.pyplot as plt
-import numpy as np 
+from pathlib import Path
+import os
 
-def plot_optimizer_comparison(histories, optimizers):
-    """Plot comparison of different optimizers"""
-    plt.figure(figsize=(15, 5))
-    
-    # Plot accuracy
-    plt.subplot(1, 2, 1)
-    for opt_name, history in histories.items():
-        plt.plot(history.history['accuracy'], label=f'{opt_name} - Training')
-        plt.plot(history.history['val_accuracy'], label=f'{opt_name} - Validation')
-    plt.title('Model Accuracy Comparison')
-    plt.xlabel('Epoch')
-    plt.ylabel('Accuracy')
-    plt.legend()
-    
-    # Plot loss
-    plt.subplot(1, 2, 2)
-    for opt_name, history in histories.items():
-        plt.plot(history.history['loss'], label=f'{opt_name} - Training')
-        plt.plot(history.history['val_loss'], label=f'{opt_name} - Validation')
-    plt.title('Model Loss Comparison')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-    
-    plt.tight_layout()
-    plt.show()
+# Configuration
+CONFIG = {
+    "data_dir": Path("data/intel_images"),
+    "balanced_dir": Path("data/balanced"),
+    "img_size": (224, 224),
+    "batch_size": 64,
+    "num_classes": 6,
+    "class_names": ['buildings', 'forest', 'glacier', 'mountain', 'sea', 'street'],
+    "epochs": 50,
+    "eval_save_dir": "evaluation_results"
+}
+
 
 def main():
-    # Set random seeds for reproducibility
-    tf.random.set_seed(42)
-    
-    # Initialize data loader and prepare dataset
-    data_loader = DataLoader(
-        dataset_name="puneet6060/intel-image-classification",
-        data_dir="data"
-    )
-    
-    try:
-        data_loader.prepare_dataset()
-    except Exception as e:
-        print(f"Error preparing dataset: {str(e)}")
-        return
-    
-    # Initialize data balancer
+    # --------------------------
+    # 1. Data Preparation Pipeline
+    # --------------------------
+    print("\n=== Data Preparation ===")
+    from src.data_ingestion.data_loader import DataLoader
+    from src.data_engineering.data_balancer import DataBalancer
+
+    # Initialize and prepare dataset
+    loader = DataLoader(CONFIG['data_dir'])
+    if not loader.prepare_dataset():
+        raise RuntimeError("Data preparation failed")
+
+    # Balance dataset
     balancer = DataBalancer(
-        data_dir="data/seg_train/seg_train",
-        target_dir="data/balanced_dataset",
-        target_size=(150, 150)
+        data_dir=CONFIG['data_dir'],  # Point to original dataset
+        target_dir=CONFIG['balanced_dir'],
+        img_size=CONFIG['img_size']
     )
-    
-    # Create balanced dataset
-    print("\nCreating balanced dataset...")
-    balancer.create_balanced_dataset(target_samples_per_class=2000)  # Adjust this number based on your needs
-    balancer.verify_balanced_dataset()
-    
-    # Initialize data preprocessor with balanced dataset
+
+    # Balance all splits (train, val, test)
+    for split in ['train', 'val', 'test']:
+        for cls in CONFIG['class_names']:
+            balancer.balance_class(
+                source_dir=(CONFIG['data_dir'] / f'seg_{split}' if split == 'val' else CONFIG['data_dir'] / f'seg_{split}' / f'seg_{split}'),
+                target_dir=CONFIG['balanced_dir'] / split,
+                cls=cls,
+                target_count=2000 if split == 'train' else 400  # Adjust counts
+            )
+            print(f"Balanced {cls} in {split} split.")
+    print("Dataset balancing completed.")
+    print(f"Balanced dataset saved to {CONFIG['balanced_dir']}")
+
+    # --------------------------
+    # 2. Data Preprocessing Pipeline
+    # --------------------------
+    print("\n=== Data Preprocessing ===")
+    from src.data_preprocessing.preprocessor import DataPreprocessor
+
     preprocessor = DataPreprocessor(
-        data_dir="data/balanced_dataset",
-        img_size=(150, 150),
-        batch_size=32
+        data_dir=CONFIG['balanced_dir'],  # Point to balanced dataset
+        img_size=CONFIG['img_size'],
+        batch_size=CONFIG['batch_size']
     )
-    
-    # Initialize feature engineer
-    feature_engineer = FeatureEngineer(
-        data_dir="data/balanced_dataset",
-        img_size=(150, 150)
+
+    # Create datasets for all splits
+    train_ds = preprocessor.create_tf_dataset('train')
+    val_ds = preprocessor.create_tf_dataset('val')
+    test_ds = preprocessor.create_tf_dataset('test')
+
+    # --------------------------
+    # 3. Model Training Pipeline
+    # --------------------------
+    print("\n=== Model Training ===")
+    from src.models import EfficientCNN, ResNetImproved
+
+    # Initialize model
+    model = ResNetImproved(
+        input_shape=CONFIG['img_size'] + (3,),
+        num_classes=CONFIG['num_classes']
     )
-    
-    # Prepare feature datasets
-    print("\nPreparing feature datasets...")
-    feature_engineer.prepare_feature_datasets()
-    
-    # Enhanced data analysis and visualization
-    print("\nAnalyzing dataset statistics...")
-    preprocessor.analyze_image_statistics()
-    preprocessor.visualize_data_distribution()
-    preprocessor.visualize_sample_images()
-    
-    # Create data generators
-    train_generator = preprocessor.create_data_generator('train')
-    val_generator = preprocessor.create_data_generator('val')
-    test_generator = preprocessor.create_data_generator('test')
-    
-    # Initialize models
-    basic_cnn = CNNModel(num_classes=6)
-    improved_cnn = CNNModel(num_classes=6, improved=True)
-    
-    # Train basic CNN
-    print("\nTraining basic CNN...")
-    basic_history = basic_cnn.train(
-        train_generator,
-        val_generator,
-        epochs=20
+
+    # Train model
+    history = model.model.fit(
+        train_ds,
+        validation_data=val_ds,
+        epochs=CONFIG['epochs'],
+        callbacks=model.callbacks
     )
-    
-    # Train improved CNN
-    print("\nTraining improved CNN...")
-    improved_history = improved_cnn.train(
-        train_generator,
-        val_generator,
-        epochs=30
-    )
-    
+
+    # Save model
+    model_path = "saved_models/best_model"
+    model.model.save(model_path)
+    print(f"Model saved to {model_path}")
+
+    # --------------------------
+    # 4. Model Evaluation Pipeline
+    # --------------------------
+    print("\n=== Model Evaluation ===")
+    from src.evalution.model_evaluator import ModelEvaluator
+
+    # Create test dataset
+    test_ds = preprocessor.create_tf_dataset('test')
+    test_ds = test_ds.prefetch(tf.data.AUTOTUNE)
+
+    # Load best model for evaluation
+    best_model = tf.keras.models.load_model(model_path)
+
     # Initialize evaluator
-    evaluator = ModelEvaluator()
-    
-    # Evaluate models
-    print("\nEvaluating models...")
-    evaluator.plot_training_history(basic_history, "Basic CNN")
-    evaluator.plot_training_history(improved_history, "Improved CNN")
-    
-    # Evaluate on test set
-    basic_metrics = evaluator.evaluate_model(basic_cnn.model, test_generator, "Basic CNN")
-    improved_metrics = evaluator.evaluate_model(improved_cnn.model, test_generator, "Improved CNN")
-    
-    # Train and evaluate advanced models
-    print("\nTraining advanced models...")
-    advanced_models = AdvancedCNNModel(num_classes=6)
-    
-    # Train models with different optimizers
-    histories = {}
-    for optimizer_name in ['adam', 'rmsprop', 'sgd']:
-        print(f"\nTraining with {optimizer_name} optimizer...")
-        history = advanced_models.train(
-            train_generator,
-            val_generator,
-            optimizer_name=optimizer_name,
-            epochs=30
-        )
-        histories[optimizer_name] = history
-    
-    # Plot optimizer comparison
-    evaluator.plot_optimizer_comparison(histories)
-    
-    # Evaluate advanced models
-    for optimizer_name in ['adam', 'rmsprop', 'sgd']:
-        metrics = evaluator.evaluate_model(
-            advanced_models.models[optimizer_name],
-            test_generator,
-            f"Advanced CNN ({optimizer_name})"
-        )
+    evaluator = ModelEvaluator(
+        model=best_model,
+        dataset=test_ds,
+        class_names=CONFIG['class_names']
+    )
+
+    # Run full evaluation
+    results = evaluator.full_evaluation_pipeline(
+        save_dir=CONFIG['eval_save_dir']
+    )
+
+    # Print key metrics
+    print("\n=== Final Metrics ===")
+    print(f"Test Accuracy: {results['accuracy']:.2%}")
+    print(f"Inference Throughput: {results['throughput']:.1f} samples/sec")
+    print(f"Macro F1-Score: {results['classification_report']['macro avg']['f1-score']:.2%}")
+
+    print(f"Evaluation results saved to {CONFIG['eval_save_dir']}/evaluation_results.json")
+
+    # save training history
+    evaluator.plot_training_history(
+        history,
+        save_path=os.path.join(CONFIG['eval_save_dir'], "training_history.png")
+    )
+
+    history.models.save(
+        os.path.join(CONFIG['eval_save_dir'], "training_history.json"),
+        overwrite=True,
+        include_optimizer=False
+    )
+
 
 if __name__ == "__main__":
-    main() 
+    # Create directory structure
+    for d in [CONFIG['data_dir'], CONFIG['balanced_dir'], CONFIG['eval_save_dir']]:
+        os.makedirs(d, exist_ok=True)
+
+    # Run pipeline
+    main()
